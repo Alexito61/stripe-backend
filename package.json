@@ -4,7 +4,5 @@
   "scripts": {
     "dev": "vercel dev"
   },
-  "dependencies": {
-    "stripe": "^13.3.0"
-  }
+  "dependencies": {}
 }
