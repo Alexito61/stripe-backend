@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/create-checkout.js": {
-      "maxDuration": 10
-    }
-  }
-}
