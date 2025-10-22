@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { lineItems, mode = 'payment' } = req.body;
+    const { lineItems, mode = 'payment', successUrl } = req.body;
 
     console.log('💰 STRIPE - Modo:', mode);
     console.log('💰 STRIPE - Items:', lineItems.length);
@@ -19,17 +19,20 @@ module.exports = async (req, res) => {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: mode,
-      success_url: `https://yourwebsite.com/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: successUrl || `https://yourwebsite.com/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://yourwebsite.com/cancel`,
+      customer_creation: 'always', // 👈 ESTA LÍNEA ES CLAVE
     });
 
     console.log('✅ STRIPE - Sesión creada:', session.id);
+    console.log('✅ STRIPE - Customer:', session.customer);
 
     res.status(200).json({ 
       success: true,
       checkoutUrl: session.url,
       sessionId: session.id,
-      mode: session.mode
+      mode: session.mode,
+      customerId: session.customer
     });
 
   } catch (error) {
