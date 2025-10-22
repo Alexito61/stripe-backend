@@ -9,46 +9,33 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    console.log('🔍 PRODUCCIÓN - Verificando configuración...');
-    console.log('🔍 STRIPE_SECRET_KEY empieza con:', process.env.STRIPE_SECRET_KEY?.substring(0, 12));
-    
-    // PROBAR CON UN SOLO PRODUCTO CONOCIDO
+    const { lineItems } = req.body;
+
+    console.log('💰 STRIPE - Items a cobrar:', JSON.stringify(lineItems, null, 2));
+    console.log('💰 STRIPE - Total de items:', lineItems.length);
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{
-        price: "price_1SL3BOCTiyXj8CRZElUtDnTX", // Base Website
-        quantity: 1,
-      }],
+      line_items: lineItems, // ← ENVIAR TODOS LOS ITEMS
       mode: 'payment',
-      success_url: `https://yourapp.com/success`,
+      success_url: `https://yourapp.com/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://yourapp.com/cancel`,
     });
 
-    console.log('✅ PRODUCCIÓN - ¡ÉXITO! Sesión creada:', session.id);
-    console.log('✅ URL de Checkout:', session.url);
+    console.log('✅ STRIPE - Sesión creada. Monto total:', session.amount_total);
+    console.log('✅ STRIPE - URL:', session.url);
 
     res.status(200).json({ 
       success: true,
       checkoutUrl: session.url,
-      sessionId: session.id
+      amountTotal: session.amount_total
     });
 
   } catch (error) {
-    console.error('❌ PRODUCCIÓN - ERROR DETALLADO:');
-    console.error('❌ Mensaje:', error.message);
-    console.error('❌ Tipo:', error.type);
-    console.error('❌ Código:', error.code);
-    console.error('❌ Parámetro:', error.param);
-    
-    // Error específico para Price IDs
-    if (error.code === 'resource_missing') {
-      console.error('❌ El Price ID no existe en modo LIVE');
-    }
-    
+    console.error('❌ STRIPE - Error:', error.message);
     res.status(500).json({ 
       success: false,
-      error: `Error: ${error.message} (${error.code})`,
-      details: `Probablemente el Price ID no existe en modo LIVE`
+      error: `Error: ${error.message}`
     });
   }
 };
