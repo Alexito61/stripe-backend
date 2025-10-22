@@ -2,6 +2,12 @@
   "functions": {
     "api/create-checkout.js": {
       "maxDuration": 10
+    },
+    "api/create-subscription.js": {
+      "maxDuration": 10
+    },
+    "api/get-session.js": {
+      "maxDuration": 10
     }
   }
 }
