@@ -15,6 +15,18 @@ module.exports = async (req, res) => {
     console.log('💰 STRIPE SUBSCRIPTION - Customer:', customerId);
     console.log('💰 STRIPE SUBSCRIPTION - Price:', priceId);
 
+    // Verificar que el price existe
+    try {
+      const priceCheck = await stripe.prices.retrieve(priceId);
+      console.log('✅ STRIPE SUBSCRIPTION - Price existe:', priceCheck.id);
+    } catch (priceError) {
+      console.log('❌ STRIPE SUBSCRIPTION - Error con price:', priceId, priceError.message);
+      return res.status(400).json({ 
+        success: false,
+        error: `Invalid price ID: ${priceId}`
+      });
+    }
+
     // Intentamos crear la suscripción directamente
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
