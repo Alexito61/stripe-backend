@@ -52,8 +52,8 @@ module.exports = async (req, res) => {
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
-      success_url: successUrl || `https://yourwebsite.com/success?maintenance=added`,
-      cancel_url: `https://yourwebsite.com/cancel`,
+      success_url: successUrl || `https://argentivaops.com/success?maintenance=added`,
+      cancel_url: `https://argentivaops.com/sites-with-ai`, // 👈 CANCEL URL AGREGADA
     });
 
     console.log('✅ STRIPE SUBSCRIPTION - Checkout creado:', session.url);
@@ -75,8 +75,8 @@ module.exports = async (req, res) => {
         customer: customerId,
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
-        success_url: successUrl || `https://yourwebsite.com/success?maintenance=added`,
-        cancel_url: `https://yourwebsite.com/cancel`,
+        success_url: successUrl || `https://argentivaops.com/success?maintenance=added`,
+        cancel_url: `https://argentivaops.com/sites-with-ai`, // 👈 CANCEL URL AGREGADA
       });
 
       console.log('✅ STRIPE SUBSCRIPTION - Fallback checkout:', session.url);
