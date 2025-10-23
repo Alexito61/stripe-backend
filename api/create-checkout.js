@@ -15,14 +15,22 @@ module.exports = async (req, res) => {
     // 👇 DEBUGGING - Verificar la clave de Stripe
     console.log('🔍 STRIPE - Clave usada:', process.env.STRIPE_SECRET_KEY?.substring(0, 20) + '...');
     console.log('💰 STRIPE - Modo:', mode);
+    console.log('💰 STRIPE - Cantidad de items:', lineItems.length);
     console.log('💰 STRIPE - Items recibidos:', JSON.stringify(lineItems, null, 2));
 
-    // 👇 NUEVO DEBUGGING - Verificar TODOS los precios
+    // 👇 DEBUGGING - Verificar TODOS los precios
     console.log('🔍 STRIPE - Verificando TODOS los precios...');
+    let totalAmount = 0;
+    
     for (let i = 0; i < lineItems.length; i++) {
       try {
         const price = await stripe.prices.retrieve(lineItems[i].price);
-        console.log(`✅ Item ${i}: Price ${lineItems[i].price} - $${price.unit_amount / 100} ${price.currency}`);
+        const itemAmount = price.unit_amount / 100;
+        const itemQuantity = lineItems[i].quantity || 1;
+        const itemTotal = itemAmount * itemQuantity;
+        totalAmount += itemTotal;
+        
+        console.log(`✅ Item ${i}: ${price.nickname || 'No name'} - $${itemAmount} x ${itemQuantity} = $${itemTotal} ${price.currency}`);
       } catch (error) {
         console.log(`❌ Item ${i}: Price ${lineItems[i].price} NO EXISTE - ${error.message}`);
         return res.status(400).json({ 
@@ -32,17 +40,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 👇 DEBUGGING - Verificar que el price base existe
-    try {
-      const priceCheck = await stripe.prices.retrieve(lineItems[0].price);
-      console.log('✅ STRIPE - Price base existe:', priceCheck.id);
-    } catch (priceError) {
-      console.log('❌ STRIPE - Error con price base:', lineItems[0].price, priceError.message);
-      return res.status(400).json({ 
-        success: false,
-        error: `Invalid price ID: ${lineItems[0].price} - ${errorError.message}`
-      });
-    }
+    console.log(`💰 STRIPE - Total calculado: $${totalAmount}`);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -55,7 +53,14 @@ module.exports = async (req, res) => {
 
     console.log('✅ STRIPE - Sesión creada:', session.id);
     console.log('✅ STRIPE - Customer:', session.customer);
-    console.log('💰 STRIPE - Monto total:', session.amount_total);
+    console.log('💰 STRIPE - Monto total en session:', session.amount_total);
+    console.log('💰 STRIPE - Moneda:', session.currency);
+
+    // Verificar que el monto coincida
+    const sessionAmount = session.amount_total / 100;
+    if (sessionAmount !== totalAmount) {
+      console.warn(`⚠️  ADVERTENCIA: Monto no coincide - Frontend: $${totalAmount} vs Stripe: $${sessionAmount}`);
+    }
 
     res.status(200).json({ 
       success: true,
@@ -63,16 +68,24 @@ module.exports = async (req, res) => {
       sessionId: session.id,
       mode: session.mode,
       customerId: session.customer,
-      amountTotal: session.amount_total
+      amountTotal: session.amount_total,
+      currency: session.currency
     });
 
   } catch (error) {
     console.error('❌ STRIPE - Error:', error.message);
     console.error('❌ STRIPE - Stack:', error.stack);
+    
+    // Debug adicional para errores de Stripe
+    if (error.type === 'StripeInvalidRequestError') {
+      console.error('❌ STRIPE - Error de request inválida:', error.raw?.message);
+    }
+    
     res.status(500).json({ 
       success: false,
       error: `Error: ${error.message}`,
-      stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7)
+      stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7),
+      errorType: error.type
     });
   }
 };
