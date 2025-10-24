@@ -14,11 +14,16 @@ module.exports = async (req, res) => {
 
     console.log('💰 STRIPE SUBSCRIPTION - Customer:', customerId);
     console.log('💰 STRIPE SUBSCRIPTION - Price:', priceId);
+    console.log('💰 STRIPE SUBSCRIPTION - Success URL:', successUrl);
 
-    // Verificar que el price existe
+    // Verificar que el price existe y es de suscripción
     try {
       const priceCheck = await stripe.prices.retrieve(priceId);
-      console.log('✅ STRIPE SUBSCRIPTION - Price existe:', priceCheck.id);
+      console.log('✅ STRIPE SUBSCRIPTION - Price existe:', priceCheck.id, 'Tipo:', priceCheck.type);
+      
+      if (priceCheck.type !== 'recurring') {
+        console.warn('⚠️ STRIPE SUBSCRIPTION - Price NO es recurrente:', priceCheck.type);
+      }
     } catch (priceError) {
       console.log('❌ STRIPE SUBSCRIPTION - Error con price:', priceId, priceError.message);
       return res.status(400).json({ 
@@ -38,36 +43,36 @@ module.exports = async (req, res) => {
 
     console.log('✅ STRIPE SUBSCRIPTION - Status:', subscription.status);
 
-    // Si está activa, perfecto
-    if (subscription.status === 'active') {
+    // Si está activa, perfecto - RETORNO QUE ESPERA EL FRONTEND
+    if (subscription.status === 'active' || subscription.status === 'trialing') {
       return res.status(200).json({
         success: true,
-        status: 'active',
+        status: subscription.status, // 'active' o 'trialing'
         subscriptionId: subscription.id
       });
     }
 
-    // Si necesita confirmación, creamos un checkout
+    // Si necesita confirmación, creamos un checkout - RETORNO CORREGIDO
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
       success_url: successUrl || `https://argentivaops.com/success?maintenance=added`,
-      cancel_url: `https://argentivaops.com/sites-with-ai`, // 👈 CANCEL URL AGREGADA
+      cancel_url: `https://argentivaops.com/sites-with-ai`,
     });
 
     console.log('✅ STRIPE SUBSCRIPTION - Checkout creado:', session.url);
 
+    // 🔥 CORRECCIÓN: Retornar SOLO checkoutUrl (sin status extra)
     res.status(200).json({
       success: true,
-      status: 'requires_payment',
-      checkoutUrl: session.url
+      checkoutUrl: session.url  // ← El frontend busca ESTE campo
     });
 
   } catch (error) {
     console.error('❌ STRIPE SUBSCRIPTION - Error:', error.message);
     
-    // Fallback: crear un checkout session normal
+    // Fallback: crear un checkout session normal - CORREGIDO
     try {
       const { customerId, priceId, successUrl } = req.body;
       
@@ -76,15 +81,15 @@ module.exports = async (req, res) => {
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
         success_url: successUrl || `https://argentivaops.com/success?maintenance=added`,
-        cancel_url: `https://argentivaops.com/sites-with-ai`, // 👈 CANCEL URL AGREGADA
+        cancel_url: `https://argentivaops.com/sites-with-ai`,
       });
 
       console.log('✅ STRIPE SUBSCRIPTION - Fallback checkout:', session.url);
 
+      // 🔥 CORRECCIÓN: Retornar SOLO checkoutUrl
       res.status(200).json({
         success: true,
-        status: 'checkout_required',
-        checkoutUrl: session.url
+        checkoutUrl: session.url  // ← El frontend busca ESTE campo
       });
     } catch (fallbackError) {
       res.status(500).json({ 
